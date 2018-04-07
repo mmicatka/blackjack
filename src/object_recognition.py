@@ -1,5 +1,5 @@
 # @file object_recognition
-# @date Fri Apr  6 16:04:21 2018
+# @date Fri Apr 6 2018 16:04:21
 # @author Matthew Chan
 # @brief Script to handle object recognition logic in order to identify playing cards.
 
@@ -21,17 +21,33 @@ def arrange_vertices(vertices):
     @param image The image (expected to be in color) to run edge detection on
     @return A tuple containing an array of detected edge coordinates and the output image
 '''
-def corner_detection(image):
+def edge_detection(image):
     # Apply gray-scale to image
     gray = cv2.cvtColor(image.copy(), cv2.COLOR_BGR2GRAY)
     gray = np.float32(gray)
+
     # Generate Harris edge detection
     dst = cv2.cornerHarris(gray, 5, 3, 0.04)
     dst = cv2.dilate(dst, None)
+    ret, dst = cv2.threshold(dst, 0.03 * dst.max(), 255, 0)
+    dst = np.uint8(dst)
+
+    ret, labels, stats, centroids = cv2.connectedComponentsWithStats(dst)
+
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.001)
+    corners = cv2.cornerSubPix(gray, np.float32(centroids), (5, 5), (-1, -1), criteria)
+
+    res = np.hstack((centroids, corners))
+    res = np.int0(res)
+
     # Change detected edge pixel colors to red
     output_img = image.copy()
-    output_img[dst > 0.03 * dst.max()] = [0, 0, 255]
-    return (dst, output_img)
+
+    output_img[res[:,1], res[:,0]] = [0, 0, 255]
+    coords = np.stack((res[:,1], res[:,0]), axis = -1)
+
+    output_img[res[:,3], res[:,2]] = [0, 255, 0]
+    return (coords, output_img)
 
 ''' Rescale image using the provided multiplier
     @param image The image to rescale
@@ -43,7 +59,7 @@ def rescale(image, multiplier):
     width = image.shape[1]
     height_r = int(height * multiplier)
     width_r = int(width * multiplier)
-    print(f"Resizing image width and height from ({width}, {height}) to ({width_r}, {height_r})")
+    print(f'Resizing image width and height from ({width}, {height}) to ({width_r}, {height_r})')
     return cv2.resize(image.copy(), (width_r, height_r))
 
 ''' Blur image (to remove artifacts) and set color thresholds on the image (for better edge detection)
@@ -56,8 +72,10 @@ def preprocess(image):
     retval, output = cv2.threshold(output, 120, 255, cv2.THRESH_BINARY)
     return output 
 
-
+# Declare constants
 CONTOUR_THRESHOLD = 10000
+X_TOLERANCE = 2
+Y_TOLERANCE = 2
 
 # Read input image (in gray-scale)
 img = cv2.imread('/Users/mchan/Desktop/cards.jpg')
@@ -66,15 +84,8 @@ img = cv2.imread('/Users/mchan/Desktop/cards.jpg')
 img_r = rescale(img, 0.2)
 
 # Identify corners in the image
-corners, corner_img = corner_detection(img_r)
+corners, corner_img = edge_detection(img_r)
 cv2.imshow('Harris Corner Detection', corner_img)
-
-# # Keep gray-scaled version of down-scaled image
-# img_gray = cv2.cvtColor(img_r.copy(), cv2.COLOR_BGR2GRAY)
-
-# # Keep a clean copy of the down-scaled image
-# imCopy = img_gray
-# t_img = img_r.copy()
 
 # Apply pre-processing to the image
 preprocess_img = preprocess(img_r)
