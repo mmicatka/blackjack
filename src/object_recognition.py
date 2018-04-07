@@ -70,7 +70,7 @@ def preprocess(image):
     output = cv2.cvtColor(image.copy(), cv2.COLOR_BGR2GRAY)
     output = cv2.GaussianBlur(output, (1, 1), 1000)
     retval, output = cv2.threshold(output, 120, 255, cv2.THRESH_BINARY)
-    return output 
+    return output
 
 # Declare constants
 CONTOUR_THRESHOLD = 10000
