@@ -12,7 +12,7 @@ import cv2
     @return A numpy array containing the sorted vertices
 '''
 def arrange_vertices(vertices):
-    sort_x = sorted(vertices.tolist(), key = lambda x : x[0])
+    sort_x = sorted(vertices, key = lambda x : x[0])
     l_vertices = sorted(sort_x[:2], key = lambda x : x[1])
     r_vertices = sorted(sort_x[2:], key = lambda x : x[1])
     return np.array([l_vertices[0], r_vertices[0], r_vertices[1], l_vertices[1]], np.float32)
@@ -44,10 +44,45 @@ def edge_detection(image):
     output_img = image.copy()
 
     output_img[res[:,1], res[:,0]] = [0, 0, 255]
-    coords = np.stack((res[:,1], res[:,0]), axis = -1)
+    # Flip xy-coordinates (OpenCV uses yx coordinates)
+    coords = np.stack((res[:,0], res[:,1]), axis = -1)
+    # output_img[res[:,3], res[:,2]] = [0, 255, 0]
 
-    output_img[res[:,3], res[:,2]] = [0, 255, 0]
     return (coords, output_img)
+
+# @TODO: Allow for error tolerance in the xy-coordinates
+# @TODO: Make this more efficient than O(ab), where a is the length of array a and b is the length of array b
+''' Return the intersection between two arrays, each containing arrays of size two
+    @param a Input array one
+    @param b Input array two
+    @return An array containing elements which exist in both a and b
+'''
+def find_2d_intersection(a, b, tolerance_x, tolerance_y):
+    intersection = []
+    for x in a:
+        for y in b:
+            if (abs(x[0] - y[0]) < tolerance_x and abs(x[1] - y[1]) < tolerance_y):
+                intersection.append(x.tolist())
+    return intersection
+
+# @TODO: Find more efficient algorithm / method to parse out vertices (one that isn't O(n^2), preferrably)
+''' Remove similar (i.e. differences in x/y planes are within a specific threshold) xy-coordinates from a 2D array 
+    @param arr 2D array containing xy-coordinates
+    @param tolerance_x Tolerance for differences in the x direction
+    @param tolerance_y Tolerance for differences in the y direction
+    @return Array with similar xy-coordinates removed
+'''
+def minify_2d_array(arr, tolerance_x, tolerance_y):
+    min_arr = []
+    for x in arr:
+        is_unique = True
+        for y in min_arr:
+            if (abs(x[0] - y[0]) < tolerance_x and abs(x[1] - y[1]) < tolerance_y):
+                is_unique = False
+        if (is_unique or len(min_arr) == 0):
+            min_arr.append(x)
+            print(f'Intersection found at ({x[0], x[1]})')
+    return min_arr
 
 ''' Rescale image using the provided multiplier
     @param image The image to rescale
@@ -74,8 +109,10 @@ def preprocess(image):
 
 # Declare constants
 CONTOUR_THRESHOLD = 10000
-X_TOLERANCE = 2
-Y_TOLERANCE = 2
+INTERSECTION_TOLERANCE_X = 3
+INTERSECTION_TOLERANCE_Y = 3
+MINIFY_THRESHOLD_X = 50
+MINIFY_THRESHOLD_Y = 50
 
 # Read input image (in gray-scale)
 img = cv2.imread('/Users/mchan/Desktop/cards.jpg')
@@ -112,51 +149,32 @@ cv2.drawContours(contour_img, contours, -1, (0, 255, 0), 5)
 # Create window showing the resized image
 cv2.imshow('Object Contour Detection', contour_img)
 
+# From the contour and corner data, locate the 4 corners of each playing card
+edges = []
+
+for idx, contour in enumerate(contours):
+    length = len(contour)
+    # Identify intersection between the set of contour points and corner points
+    intersections = find_2d_intersection(contour.reshape(length, 2), corners, INTERSECTION_TOLERANCE_X, INTERSECTION_TOLERANCE_Y)
+    print(f'Card {idx}: Length of intersection array is {len(intersections)}')
+    # Remove similar xy-coordinates (so that hopefully only the four corner coordinates remain)
+    edges.append(minify_2d_array(intersections, MINIFY_THRESHOLD_X, MINIFY_THRESHOLD_Y))
+    print(f'Card {idx}: Length of intersection array is {len(intersections)}')
+
+v_transform = np.array([ [0,0],[450,0],[450,450],[0,450] ], np.float32)
+
+for n in np.arange(0, num_cards):
+    # Sort vertices
+    v = arrange_vertices(edges[n])
+    # v = np.array(edges[n], np.float32)
+    print(f'Card {n}\'s vertices: {v}')
+    # Generate 3x3 perspective transform matrix
+    m = cv2.getPerspectiveTransform(v, v_transform)
+    # Warp perspective
+    output = cv2.warpPerspective(img_r.copy(), m, (450, 450))
+    # Show the output image
+    cv2.imshow(f'Card {n}', output)
+
 # Destroy window after key-press
 cv2.waitKey(0)
 cv2.destroyAllWindows()
-
-# Find intersections between contours and edges (within margin of error)
-
-# Pick a random intersection and remove all other intersections (within margin of error)
-# Repeat for all playing cards until each card has 4 points identified
-# If more than 4 points are identified, exit with error
-
-
-
-
-
-
-# # @TODO: Find more efficient algorithm / method to parse out vertices
-# edges = contours.copy()
-
-# for i, e in enumerate(edges):
-#     edges[i] = e.reshape((len(e), 2)).astype(np.float32)
-#     min_x = 0
-#     max_x = 0
-#     min_y = 0
-#     max_y = 0
-#     for idx, coord in enumerate(edges[i]):
-#         # print(f"i is {i}, idx is {idx}, max_x is {max_x}")
-#         if (edges[i][idx][0] > edges[i][max_x][0]):
-#             max_x = idx
-#         if (edges[i][idx][0] < edges[i][min_x][0]):
-#             min_x = idx
-#         if (edges[i][idx][1] > edges[i][max_y][1]):
-#             max_y = idx
-#         if (edges[i][idx][1] < edges[i][min_y][1]):
-#             min_y = idx
-#     edges[i] = edges[i][[min_x, max_x, min_y, max_y], :]
-
-# v_transform = np.array([ [0,0],[450,0],[450,450],[0,450] ], np.float32)
-
-# for n in np.arange(0, num_cards):
-#     # Sort vertices
-#     v = arrange_vertices(edges[n])
-#     print(f'Card {n}\'s vertices: {v}')
-#     # Generate 3x3 perspective transform matrix
-#     m = cv2.getPerspectiveTransform(v, v_transform)
-#     # Warp perspective
-#     output = cv2.warpPerspective(img_r.copy(), m, (450, 450))
-#     # Show the output image
-#     cv2.imshow(f'Card {n}', output)
