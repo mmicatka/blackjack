@@ -208,5 +208,15 @@ class Blackjack(object):
             print(player + ':')
             print('Hand: ', end='\t')
             self.print_hand(player)
+            if round_over:
+                if self.players[player]['winner'] == -1:
+                    print('FAIL')
+                if self.players[player]['winner'] == 0:
+                    print('PUSH')
+                if self.players[player]['winner'] == 1:
+                    print('WIN')
+
+
+
             print('Current Bet:\t' + str(self.players[player]['bet']))
             print('Bank:\t' + str(self.players[player]['bank']))
