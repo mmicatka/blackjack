@@ -31,8 +31,11 @@ class Blackjack(object):
                 # We cannot 'break the bank'
                 'bank': sys.float_info.max,
                 'bet': None,
+                'shown_card': None,
+                'shown_value': None,
                 'hand': [],
-                'hand_value': 0
+                'hand_value': 0,
+                'winner': None
             }
         }
 
@@ -42,7 +45,8 @@ class Blackjack(object):
                 'bank': 1000,   # Change this to come from a passed in dictionary
                 'bet': self.min_bet,
                 'hand': [],
-                'hand_value': 0
+                'hand_value': 0,
+                'winner': -1
             }
 
     def init_deck(self, num_decks):
@@ -65,7 +69,6 @@ class Blackjack(object):
         }
 
         self.card_values = {
-            'Ace': 1,
             '2': 2,
             '3': 3,
             '4': 4,
@@ -78,34 +81,43 @@ class Blackjack(object):
             'J': 10,
             'Q': 10,
             'K': 10,
+            'Ace': 11
         }
 
+    def set_game_state(self):
+        # This will be used later to get the data from the camera
+        pass
+
+    def get_all_players(self):
+        return list(self.players.keys())
+
+    def get_non_dealer_players(self):
+        players = self.get_all_players()
+        players.remove('dealer')
+        return players
+
     def deal(self):
-        for player in self.players:
+        # Players
+        for player in self.get_non_dealer_players():
             # Not sure the best way to iterate over twice without a separate loop
             # so here we are
+            self.players[player]['hand'].clear()
             self.players[player]['hand'].append(self.get_card())
             self.players[player]['hand'].append(self.get_card())
+
+        # Dealer
+        shown_card = self.get_card()
+        hidden_card = self.get_card()
+
+        self.players['dealer']['hand'].clear()
+        self.players['dealer']['hand'].append(shown_card)
+        self.players['dealer']['hand'].append(hidden_card)
+        self.players['dealer']['shown_card'] = shown_card
 
         self.calculate_hand_values()
 
-    def print_hand(self, player):
-        for card in self.players[player]['hand']:
-            print(card, end='\t')
-
-    def print_all(self):
-        for player in self.players:
-            print(player + ':')
-            print('Hand: ', end='\t')
-            self.print_hand(player)
-            print('\nValue: ' + str(self.players[player]['hand_value']))
-            print('Current Bet:\t' + str(self.players[player]['bet']))
-            print('Bank:\t' + str(self.players[player]['bank']))
-
-            print()
-
-    def get_players(self):
-        return list(self.players.keys())
+    def check_blackjack(self, player):
+        return self.get_player_hand_value(player) == 21
 
     def hit(self, player):
         self.players[player]['hand'].append(self.get_card())
@@ -127,8 +139,74 @@ class Blackjack(object):
             self.players[player]['hand_value'] += self.card_values[card]
 
     def calculate_hand_values(self):
-        for player in self.players:
+        shown_card = self.players['dealer']['shown_card']
+        self.players['dealer']['shown_value'] = self.card_values[shown_card]
+        for player in self.get_all_players():
             self.update_hand_value(player)
 
     def get_player_hand_value(self, player):
         return self.players[player]['hand_value']
+
+    def evaluate_hands(self):
+        self.set_winners()
+        for player in self.get_non_dealer_players():
+            winner = self.players[player]['winner']
+            self.players[player]['bank'] += winner * self.players[player]['bet']
+
+    def reset_winners(self):
+        players = self.get_all_players()
+        for player in players:
+            self.players[player]['winner'] = None
+
+    def set_winners(self):
+        self.reset_winners()
+        players = self.get_non_dealer_players()
+
+        # Check for player bust first
+        for player in players:
+            if self.players[player]['hand_value'] > 21:
+                self.players[player]['winner'] = -1
+
+        dealer_value = self.players['dealer']['hand_value']
+        # check dealer bust second
+        if dealer_value > 21:
+            for player in players:
+                if not self.players[player]['winner']:
+                    self.players[player]['winner'] = 1
+        else:
+            # compare scores
+            for player in players:
+                if not self.players[player]['winner']:
+                    self.players[player]['winner'] = -1
+                    if self.players[player]['hand_value'] == dealer_value:
+                        self.players[player]['winner'] = 0
+                    if self.players[player]['hand_value'] > dealer_value:
+                        self.players[player]['winner'] = 1
+
+    def print_hand(self, player):
+        for card in self.players[player]['hand']:
+            print(card, end='\t')
+        print('\nValue: ' + str(self.players[player]['hand_value']))
+
+    def print_round(self, round_over=False):
+        print('------------------------------------')
+        print('Dealer:')
+        if round_over:
+            print('Hand: ', end='\t')
+            self.print_hand('dealer')
+        else:
+            dealer_card = self.players['dealer']['shown_card']
+            dealer_value = self.players['dealer']['shown_value']
+
+            print('Shown Card:\t' + dealer_card)
+            print('Value:\t' + str(dealer_value))
+
+        players = self.get_non_dealer_players()
+
+        for player in players:
+            print('------------------------------------')
+            print(player + ':')
+            print('Hand: ', end='\t')
+            self.print_hand(player)
+            print('Current Bet:\t' + str(self.players[player]['bet']))
+            print('Bank:\t' + str(self.players[player]['bank']))
