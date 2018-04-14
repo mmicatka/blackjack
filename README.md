@@ -22,6 +22,7 @@ The game of [https://en.wikipedia.org/wiki/Blackjack](blackjack) is played as fo
 1. Get gamestate via computer vision
 1. Make web-portal
 1. Add items to roadmap
+1. Add different bank-roll sizes for players
 
 
 
