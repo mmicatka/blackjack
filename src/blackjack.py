@@ -12,6 +12,7 @@ class Blackjack(object):
             num_decks=1,
             num_players=1,
             min_bet=5,
+            reshuffle_ratio=0.3,
             seed=2018
     ):
 
@@ -21,6 +22,8 @@ class Blackjack(object):
         self.players = None
 
         self.min_bet = min_bet
+        self.reshuffle_ratio = reshuffle_ratio
+        self.num_decks = num_decks
         self.init_deck(num_decks)
         self.init_players(num_players)
         random.seed(seed)
@@ -84,6 +87,18 @@ class Blackjack(object):
             'Ace': 11
         }
 
+    def needs_reshuffle(self):
+        return (len(self.cards_seen) / self.reshuffle_ratio) >= self.num_decks
+
+    def reshuffle(self):
+        self.init_deck()
+
+    def get_bet(self, player):
+        return self.players[player]['bet']
+
+    def set_bet(self, player, bet):
+        self.players[player]['bet'] = bet
+
     def set_game_state(self):
         # This will be used later to get the data from the camera
         pass
@@ -123,6 +138,16 @@ class Blackjack(object):
         self.players[player]['hand'].append(self.get_card())
         self.update_hand_value(player)
 
+    def split(self, player):
+        print('This is not yet implemented...probably should not have split')
+        pass
+
+    def is_soft_seventeen(self):
+        dealer_hand = self.players['dealer']['hand']
+        if 'Ace' in dealer_hand and '6' in dealer_hand:
+            return True
+        return False
+
     def get_card(self):
         card = random.choice(list(self.deck.keys()))
 
@@ -150,8 +175,7 @@ class Blackjack(object):
     def evaluate_hands(self):
         self.set_winners()
         for player in self.get_non_dealer_players():
-            winner = self.players[player]['winner']
-            self.players[player]['bank'] += winner * self.players[player]['bet']
+            self.players[player]['bank'] += self.players[player]['winner'] * self.players[player]['bet']
 
     def reset_winners(self):
         players = self.get_all_players()
@@ -215,8 +239,6 @@ class Blackjack(object):
                     print('PUSH')
                 if self.players[player]['winner'] == 1:
                     print('WIN')
-
-
 
             print('Current Bet:\t' + str(self.players[player]['bet']))
             print('Bank:\t' + str(self.players[player]['bank']))
