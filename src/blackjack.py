@@ -24,7 +24,7 @@ class Blackjack(object):
         self.min_bet = min_bet
         self.reshuffle_ratio = reshuffle_ratio
         self.num_decks = num_decks
-        self.init_deck(num_decks)
+        self.init_deck()
         self.init_players(num_players)
         random.seed(seed)
 
@@ -52,23 +52,23 @@ class Blackjack(object):
                 'winner': -1
             }
 
-    def init_deck(self, num_decks):
+    def init_deck(self):
         self.cards_seen = {}
 
         self.deck = {
-            'Ace': 4 * num_decks,
-            '2': 4 * num_decks,
-            '3': 4 * num_decks,
-            '4': 4 * num_decks,
-            '5': 4 * num_decks,
-            '6': 4 * num_decks,
-            '7': 4 * num_decks,
-            '8': 4 * num_decks,
-            '9': 4 * num_decks,
-            '10': 4 * num_decks,
-            'J': 4 * num_decks,
-            'Q': 4 * num_decks,
-            'K': 4 * num_decks,
+            'Ace': 4 * self.num_decks,
+            '2': 4 * self.num_decks,
+            '3': 4 * self.num_decks,
+            '4': 4 * self.num_decks,
+            '5': 4 * self.num_decks,
+            '6': 4 * self.num_decks,
+            '7': 4 * self.num_decks,
+            '8': 4 * self.num_decks,
+            '9': 4 * self.num_decks,
+            '10': 4 * self.num_decks,
+            'J': 4 * self.num_decks,
+            'Q': 4 * self.num_decks,
+            'K': 4 * self.num_decks,
         }
 
         self.card_values = {
