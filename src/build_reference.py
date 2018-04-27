@@ -4,6 +4,7 @@
 # @brief Generate reference images for all playing cards
 
 # Project dependencies
+import time
 import numpy as np
 import cv2
 import pickle
@@ -56,6 +57,7 @@ def build_ref(img_file, answers, reference):
         reference.append(output)
         # Show the output image
         cv2.imshow(f'Card {n}', output)
+        # cv2.imwrite(f'{time.time()}.jpg', output)
         cv2.waitKey(30)
         answers.append(input(f'Card {n} is: '))
 
